@@ -1,0 +1,43 @@
+<!doctype html>
+<html>
+<head>
+	<title>自訂函數 ng-controller</title>
+	<meta charset="utf-8"/>
+	<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.0/angular.min.js"></script>
+	<script>
+	angular.module('myApp',[])
+		   .controller('showController',function(){
+			   
+		   });
+	</script>
+</head>
+<!-- you can't write without ng-app:
+	<body>
+		<div ng-controller="ohcon">
+			<p>1 + 4 = {{ 1+4 }}</p>
+			
+			<input ng-model="ttt"/>
+			<p>The input is: {{ttt}}</p>
+		</div>
+	</body>
+-->
+<!-- nor without define it:
+	<body ng-app>
+		<div ng-controller="ohcon">
+			<p>1 + 4 = {{ 1+4 }}</p>
+			
+			<input ng-model="ttt"/>
+			<p>The input is: {{ttt}}</p>
+		</div>
+	</body>
+ -->
+
+<body ng-app="myApp">
+	<div ng-controller="showController">
+		<p>1 + 4 = {{ 1+4 }}</p>
+		
+		<input ng-model="ttt"/>
+		<p>The input is: {{ttt}}</p>
+	</div>
+</body>
+</html>
