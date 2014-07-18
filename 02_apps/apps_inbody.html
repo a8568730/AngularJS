@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+<head>
+	<title>在同一個網頁建立多個 ng-app 解法1</title>
+	<meta charset="utf-8"/>
+	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.0/angular.min.js"></script>
+</head>
+<body>
+	<div id="app1">
+		<span>app1: {{1+4}}</span>
+	</div>
+	<div id="app2">
+		<span>app2: {{1+4}}</span>
+	</div>
+	<p>不用ng-app，而定義id並呼叫angular.bootstrap兩次個別定義</p>
+	<p>不過bootstrap的script必須擺到body尾端</p>
+	<p>若擺在head，bootstrap看見id時不知道這個id是哪個標籤的，就會無法執行bootstrap</p>
+	<script src="js/show_apps2.js"></script>
+</body>
+</html>
