@@ -1,0 +1,18 @@
+<!doctype html>
+<html>
+<head>
+	<title>在同一個網頁建立多個 ng-app</title>
+	<meta charset="utf-8"/>
+	<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.0/angular.min.js"></script>
+	<script type="text/javascript" src="js/show2.js"></script>
+</head>
+<body>
+	<div ng-app="app1">
+		<span>app1: {{1+4}}</span>
+	</div>
+	<div ng-app="app2">
+		<span>app2: {{1+4}}</span>
+	</div>
+	<p>沒有call bootstrap的話，只有app1會成功顯示5。</p>
+</body>
+</html>
