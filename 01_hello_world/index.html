@@ -2,8 +2,14 @@
 <html>
 <head>
 	<meta charset="utf-8"/>
-	<script type="text/javascript"/>
+	<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.0/angular.min.js"></script>
 </head>
-<body>
+<body ng-app>
+	<div>
+		<p>1 + 4 = {{ 1+4 }}</p>
+		
+		<input ng-model="ttt"/>
+		<p>The input is: {{ttt}}</p>
+	</div>
 </body>
 </html>
