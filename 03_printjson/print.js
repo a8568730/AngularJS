@@ -3,7 +3,7 @@ var app = angular.module('demo', [])
 		      $scope.greeting = 'Welcome!';
 		      $scope.profiles = [
 		          {
-		    		  name:"§pM",
+		    		  name:"Â∞èM",
 		    		  locate:"Taiwan Hualien"
 		          },
 		          {

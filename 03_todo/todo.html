@@ -9,13 +9,26 @@
 
 <body ng-app="demo">
 	<div ng-controller="WelcomeController">
-	  {{greeting}}
-	  We are 
-	  <p>{{profiles[0].name}}</p>
-	  <p>{{profiles[1].name}}</p>
-	  
-	
+	  	{{ greeting }}
+	  	We are 
+		<p ng-repeat="profile in profiles">
+			<span>{{ profile.name }}</span>,
+			<span>{{ profile.locate }}</span>
+		</p>
 	</div>
-	
+	<div ng-controller="TodoController">
+		<h2>Todo</h2>
+		{{ remaining() }} of {{ todolist.length }} remaining [<a href="" ng-click="refresh()">refresh</a>]
+		<ul>
+			<li ng-repeat="item in todolist">
+				<input type="checkbox" ng-model="item.done"/>
+				<p ng-class="{ done_line: item.done === true}">{{ item.text }}</p>
+			</li>
+		</ul>
+		<form ng-submit="addnew()">
+			<input type="text" ng-model="newtext"/>
+			<input type="submit" value="add"/>
+		</form>
+	</div>
 </body>
 </html>
