@@ -11,14 +11,16 @@
 	<div id="wrapper">
 	  <h1>請直接點選想要斷詞的文字</h1>
 	  <div ng-app="app1" ng-controller="showController">
-	      {{input}}, {{str3}}
-	      <a href="" ng-repeat="slice in str2" ng-click="slice.clicked = !slice.clicked" ng-class="{'brw': slice.clicked}">
-	          {{slice.word}}
+	      <p>{{chinese2[0][0].string}}</p>
+	      <p>{{chinese2[0][0].words}}</p>
+	      <ul>
+	      	<li ng-repeat="word in chinese2[0][0].words">{{word.shape}}, {{word.tone}}, {{word.clicked}}</li>
+	      </ul>
+	     
+	      <a href="" ng-repeat="word in chinese2[0][0].words" ng-click="word.clicked = !word.clicked" ng-class="{'brw': word.clicked}">
+	          {{word.shape}}
 	      </a>
-	      <p>{{chinese2[0][0].aa}}</p>
-	     <!--  <p ng-repeat="line in chinese">
-	      	<span ng-repeat="words in line">{{words.\u578b\u9ad4}}</span>
-	      </p> -->
+	      
   		</div>
 	</div>
 </body>
