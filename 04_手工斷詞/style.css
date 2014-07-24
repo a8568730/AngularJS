@@ -1,0 +1,27 @@
+#wrapper{
+	width:60%;
+	min-height:500px;
+	margin:auto;
+	padding:20px 0 0;
+	text-align:center;
+}
+
+a {
+    margin:0 20px;
+    padding:0px 5px;
+    text-decoration:none;
+    border:1px solid transparent;
+}
+
+a:hover {
+    text-decoration:underline;
+    color:red;
+}
+a, a:active{
+    color:black;
+}
+
+.brw{
+    color:blue;
+    border-right:1px solid blue;
+}

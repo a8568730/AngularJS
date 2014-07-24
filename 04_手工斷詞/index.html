@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <script src="http://cdnjs.cloudflare.com/ajax/libs/angular.js/1.2.20/angular.js"></script>
+  <script src="script.js"></script>
+  <link href="style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+
+	<div id="wrapper">
+	  <h1>請直接點選想要斷詞的文字</h1>
+	  <div ng-app="app1" ng-controller="showController">
+	      {{input}}, {{str3}}
+	      <a href="" ng-repeat="slice in str2" ng-click="slice.clicked = !slice.clicked" ng-class="{'brw': slice.clicked}">
+	          {{slice.word}}
+	      </a>
+	      <p>{{chinese2[0][0].aa}}</p>
+	     <!--  <p ng-repeat="line in chinese">
+	      	<span ng-repeat="words in line">{{words.\u578b\u9ad4}}</span>
+	      </p> -->
+  		</div>
+	</div>
+</body>
+</html>
