@@ -7,10 +7,10 @@
 }
 
 a {
-    margin:0 20px;
+    margin:0 1px;
     padding:0px 5px;
     text-decoration:none;
-    border:1px solid transparent;
+    border:2px solid transparent;
 }
 
 a:hover {
@@ -22,6 +22,6 @@ a, a:active{
 }
 
 .brw{
-    color:blue;
-    border-right:1px solid blue;
+    border-right-color: rgb(250,10,10);
+    
 }
