@@ -1,6 +1,6 @@
-var app1 = angular.module("app1",[]);
+var app1 = angular.module("app1", ['ngRoute']);
 
-app1.controller("showController",["$scope","$filter","$http","$q",function($scope,$filter,$http,$q){
+app1.controller("showController",["$scope","$location","$http","$q",function($scope,$location,$http,$q){
     $scope.str = [{
                 word:"我",
                 clicked:false
@@ -12,7 +12,10 @@ app1.controller("showController",["$scope","$filter","$http","$q",function($scop
                 clicked:false
             }
         ];
+    var searchObject = $location.url();
+    alert(searchObject);
     
+    //alert($routeParams.aaaa);
     /*印出萬國碼方法 1*/
     //$scope.input = unescape(JSON.parse('"\u8a5e \u7d44 \u7d9c \u5408 \u6a19 \u97f3"'));
     /*印出萬國碼方法 2*/
