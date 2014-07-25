@@ -7,23 +7,22 @@
   <link href="style.css" type="text/css" rel="stylesheet"/>
 </head>
 <body>
-
-	<div id="wrapper">
-	  <h1>請直接點選想要斷詞的文字</h1>
-	  <div ng-app="app1" ng-controller="showController">
-	    	原始資料：{{chinese}} <br/>
-	  		句子：{{string}}
-	      <p>{{chinese2[0][0].string}}</p>
-	      <p>{{chinese2[0][0].words}}</p>
-	      <ul>
-	      	<li ng-repeat="word in chinese2[0][0].words">{{word.shape}}, {{word.tone}}, {{word.clicked}}</li>
-	      </ul>
-	     
-	      <a href="" ng-repeat="word in chinese2[0][0].words" ng-click="word.clicked = !word.clicked" ng-class="{'brw': word.clicked}">
-	          {{word.shape}}
-	      </a>
-	      
-  		</div>
+<div id="wrapper">
+  	<h1>請直接點選想要斷詞的文字</h1>
+	<div ng-app="app1" ng-controller="showController">
+   		原始資料：{{chinese}} <br/>
+ 		句子：{{string}}
+     	<p>{{chinese2[0][0].string}}</p>
+     	<p>{{chinese2[0][0].words}}</p>
+     	<ul>
+			<li ng-repeat="word in chinese2[0][0].words">{{word.shape}}, {{word.tone}}, {{word.clicked}}</li>
+		</ul>
+    
+		<a href="" ng-repeat="word in chinese2[0][0].words" ng-click="word.clicked = !word.clicked" ng-class="{'brw': word.clicked}">
+			{{word.shape}}
+     	</a>
+      
 	</div>
+</div>
 </body>
 </html>
