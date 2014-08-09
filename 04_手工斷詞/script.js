@@ -14,7 +14,7 @@ app1.controller("showController",["$scope","$location","$http","$q",function($sc
 	var searchObject = $location.search();
     $scope.mainInfo = $http.get("./答案.txt").success(function(data) {
         //1.讀入十句        
-    	$scope.input10 = data.slice(searchObject.aaaa,searchObject.aaaa + 10);
+    	$scope.input10 = data.slice(searchObject.start,searchObject.start + 10);
     	
 	    //2.初始化每一句要斷詞的句子 (anguarJS無法顯示{{中文變數}})
     	angular.forEach($scope.input10,function(每一句, 索引值){
