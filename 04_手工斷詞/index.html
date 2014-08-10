@@ -1,36 +1,42 @@
 <!doctype html>
 <html>
 <head>
-  <meta charset="utf-8"/>
-  <script src="http://cdnjs.cloudflare.com/ajax/libs/angular.js/1.2.20/angular.js"></script>
-  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.20/angular-route.min.js"></script>
-  <script src="script.js"></script>
-  <link href="style.css" type="text/css" rel="stylesheet"/>
+  	<meta charset="utf-8"/>
+  	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+	<link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css">
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+	<script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+	<script src="http://cdnjs.cloudflare.com/ajax/libs/angular.js/1.2.20/angular.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.20/angular-route.min.js"></script>
+    <title>手工斷詞</title>
+	<script src="script.js"></script>
+	<link href="style.css" type="text/css" rel="stylesheet"/>
 </head>
 <body>
-<div id="wrapper">
-  	<h1>請直接點選想要斷詞的文字</h1>
-	<div ng-app="app1" ng-controller="showController">
-   		<!-- 原始資料：{{chinese}} <br/>
- 		句子：{{string}}
-     	<p>{{chinese2[0][0].string}}</p>
-     	<p>{{chinese2[0][0].words}}</p>
-     	<ul>
-			<li ng-repeat="word in chinese2[0][0].words">{{word.shape}}, {{word.tone}}, {{word.clicked}}</li>
-		</ul>
-    
-		<a href="" ng-repeat="word in chinese2[0][0].words" ng-click="word.clicked = !word.clicked" ng-class="{'brw': word.clicked}">
-			{{word.shape}}
-     	</a> -->
-     	<div ng-repeat="input in input10">
-     		<p>啾啾</p>
-     		<a href="" ng-repeat="word in input[0][0].words" ng-click="word.clicked = !word.clicked" ng-class="{'brw': word.clicked}">
-				{{word.shape}}
-     		</a> 
-     		<hr/>
-     	</div>
-		<input type="button" ng-click="restore()" value="存入檔案"/>
-	</div>
-</div>
+  	<div class="container">
+	  	<div class="navbar navbar-static-top navbar-default" role="navigation">
+	  			<a class="navbar-brand" href="#">手工斷詞系統</a>
+	  	</div>
+  	
+	<div class="container">
+	  	<div class="row">
+	  	<div ng-app="app1" ng-controller="showController">
+	   		<table class="table table-striped">
+	   			<thead>
+	   				<tr><td>#</td><td>請直接點選想要斷詞的文字</td></tr>
+	   			</thead>
+	   			<tbody>
+		   			<tr ng-repeat="input in input10">
+		   				<td>{{$index}}</td><td><a href="" ng-repeat="word in input[0][0].words" ng-click="word.clicked = !word.clicked" ng-class="{'brw': word.clicked}">{{word.shape}}</a></td>
+		   			</tr>
+	   			</tbody>
+	   		</table>
+			<input type="button" ng-click="restore()" value="存入檔案" class="btn btn-success"/>
+		</div> 
+		</div>
+		</div>
+  	</div>
 </body>
 </html>
