@@ -1083,374 +1083,213 @@ void MVN2(OUT_DATA *Cep_Data,int frameNumber, int window)
    }
 }
 
-//2013/12/3, padding tail frame: fixed by buff for tail(buff=MV_WINDOW*2+1)
-void MVN2_T1(OUT_DATA *Cep_Data,int frameNumber, int window)
+
+//2014/01/16, accumulate buff for MVN
+void MVN2_ACC(OUT_DATA *Cep_Data,int frameNumber, int window)
 {
-   int   t, d;
-   double mean[OUT_DIM], sd[OUT_DIM];
-   double mean2[frameNumber][OUT_DIM], sd2[frameNumber][OUT_DIM];
+    int   t, d;
+    double mean[OUT_DIM], sd[OUT_DIM];
+    double mean2[frameNumber][OUT_DIM], sd2[frameNumber][OUT_DIM];
 
-   int   i;
-   double *fea;
-   int tt,t_index,f_flag;
-   
-   //printf("qtk total frame:%d\n",frameNumber);getchar();
+    int   i;
+    double *fea;
+    int tt,t_index,f_flag,nbuf,fmod,sbufNum,sbufmod,begin,end;
 
-   //dynamic mean & std calculation
-   f_flag=0;
-   for (t=0; t<frameNumber; ++t)
-   {
-      //track last buff at tail
-	  if (t==frameNumber-window)
-		f_flag=1;
-		
-	  for (d=0; d<OUT_DIM; ++d)
-          mean2[t][d] = sd2[t][d] = 0.0f;
-          
-      if (f_flag)
-	  {
-		  for (tt=frameNumber-window*2;tt<frameNumber;tt++)
-		  {
-			   if(tt < 0)
-			   {
-				  //t_index=0;
-				  if(frameNumber+tt<0)
-					t_index =0;
-				  else              
-					t_index = frameNumber+tt;
-			   }
-			   else if(tt > frameNumber-1)
-			   {
-				  //t_index=frameNumber-1;
-				  if(tt-frameNumber > frameNumber-1)
-					 t_index = frameNumber-1;
-				  else
-					 t_index = tt-frameNumber;
-			   }
-			   else
-				  t_index=tt;
-				  
-				  
-			   for (d=0; d<OUT_DIM; ++d)
-			   {
-				  mean2[t][d] += Cep_Data[t_index][d];
-				  sd2[t][d] += Cep_Data[t_index][d]*Cep_Data[t_index][d];
-			   }
-		  }
-	  }
-	  else
-	  {
-		  for (tt=t-window;tt<=t+window;tt++)
-		  {
-			   if(tt < 0)
-			   {
-				  //t_index=0;
-				  if(frameNumber+tt<0)
-					t_index =0;
-				  else              
-					t_index = frameNumber+tt;
-			   }
-			   else if(tt > frameNumber-1)
-			   {
-				  //t_index=frameNumber-1;
-				  if(tt-frameNumber > frameNumber-1)
-					 t_index = frameNumber-1;
-				  else
-					 t_index = tt-frameNumber;
-			   }
-			   else
-				  t_index=tt;
-				  
-				  
-			   for (d=0; d<OUT_DIM; ++d)
-			   {
-				  mean2[t][d] += Cep_Data[t_index][d];
-				  sd2[t][d] += Cep_Data[t_index][d]*Cep_Data[t_index][d];
-			   }
-		  }
-	  }
+    //printf("qtk total frame:%d\n",frameNumber);getchar();
+    for (d=0; d<OUT_DIM; ++d)
+    {
+       mean[d] = 0.0f;
+       sd[d] = 0.0f;
+    }
 
-      
+    for (t=0; t<frameNumber; ++t)
+       for (d=0; d<OUT_DIM; ++d)
+       {
+          mean[d] += Cep_Data[t][d];
+          sd[d]  += Cep_Data[t][d]*Cep_Data[t][d];
+       }
+
+    //dynamic mean & std calculation
+    f_flag=0;
+    nbuf=0;
+    fmod==0;
+    sbufNum=(int)(frameNumber)/(window*2);
+    sbufmod=(frameNumber)%(window*2);
+    for (t=0; t<frameNumber; ++t)
+    {
+       ///////////////////
+       if (t<=window)
+       {
+         begin=0-window;
+         end=window;
+         nbuf=3;
+       }
+       else if (t>window && t<=window*nbuf)
+       {
+         begin=0;
+         if(fmod==1 && t> sbufNum*window*2)
+             end=window*nbuf+sbufmod;
+         else
+             end=window*nbuf;
+       }
+       else
+       {
+         if(window*nbuf<=sbufNum*window)
+         {nbuf=nbuf+2;}
+         else
+         {
+             if(sbufmod!=0)
+                 fmod=1;
+         }
+       }
+       ///////////////////
+
+       //track last buff at tail
+      // if (t==frameNumber-window)
+     //    f_flag=1;
+
+       for (d=0; d<OUT_DIM; ++d)
+           mean2[t][d] = sd2[t][d] = 0.0f;
+
+       //if (f_flag)
+       //{
+     //      for (d=0; d<OUT_DIM; ++d)
+     //      {
+     //        mean2[t][d] +=mean[d];
+     //        sd2[t][d] +=sd[d];
+     //      }
+
+      // }
+       //else
+      // {
+           //for (tt=t-window;tt<=t+window;tt++)
+           for (tt=begin;tt<=end;tt++)
+           {
+                if(tt < 0)
+                {
+                   //t_index=0;
+                   if(frameNumber+tt<0)
+                     t_index =0;
+                   else
+                     t_index = frameNumber+tt;
+                }
+                else if(tt > frameNumber-1)
+                {
+                   //t_index=frameNumber-1;
+                   if(tt-frameNumber > frameNumber-1)
+                      t_index = frameNumber-1;
+                   else
+                      t_index = tt-frameNumber;
+                }
+                else
+                   t_index=tt;
+
+
+                for (d=0; d<OUT_DIM; ++d)
+                {
+                   mean2[t][d] += Cep_Data[t_index][d];
+                   sd2[t][d] += Cep_Data[t_index][d]*Cep_Data[t_index][d];
+                }
+           }
+       //}
+
+
+       for (d=0; d<OUT_DIM; ++d)
+       {
+           mean2[t][d] /= (float)(2.0f*frameNumber+1.0f);
+           sd2[t][d] = 
+(float)sqrt(sd2[t][d]/(float)(2.0f*frameNumber+1.0f) - 
+mean2[t][d]*mean2[t][d]);
+       }
+
+       //printf("ok frame:%d mean2 sd2\n",t);
+
+    }
+    //printf("qtk! ok mean2 sd2!\n");
+
+    //using dynamic mean & std
+    for (t=0; t<frameNumber; ++t)
       for (d=0; d<OUT_DIM; ++d)
-      {
-          mean2[t][d] /= (float)(2.0f*window+1.0f);
-          sd2[t][d] = (float)sqrt(sd2[t][d]/(float)(2.0f*window+1.0f) - mean2[t][d]*mean2[t][d]);
-      }
-   
-      //printf("ok frame:%d mean2 sd2\n",t);
-          
-   }
-   //printf("qtk! ok mean2 sd2!\n");
-   
-   //using dynamic mean & std
-   for (t=0; t<frameNumber; ++t)
-     for (d=0; d<OUT_DIM; ++d)
-        Cep_Data[t][d] = (Cep_Data[t][d] - mean2[t][d])/sd2[t][d];   
+         Cep_Data[t][d] = (Cep_Data[t][d] - mean2[t][d])/sd2[t][d];
 
 //using whole sentence
 /*
-   for (d=0; d<OUT_DIM; ++d)
-   {
-      mean[d] = 0.0f;
-      sd[d] = 0.0f;
-   }
+    for (d=0; d<OUT_DIM; ++d)
+    {
+       mean[d] = 0.0f;
+       sd[d] = 0.0f;
+    }
 
-   for (t=0; t<frameNumber; ++t)
-      for (d=0; d<OUT_DIM; ++d)
-      {
-         mean[d] += Cep_Data[t][d];
-         sd[d]  += Cep_Data[t][d]*Cep_Data[t][d];
-      }
+    for (t=0; t<frameNumber; ++t)
+       for (d=0; d<OUT_DIM; ++d)
+       {
+          mean[d] += Cep_Data[t][d];
+          sd[d]  += Cep_Data[t][d]*Cep_Data[t][d];
+       }
 
-   for (d=0; d<OUT_DIM; ++d)
-   {
-      mean[d] /= (float)frameNumber;
-      sd[d] = (float)sqrt(sd[d]/(float)frameNumber - mean[d]*mean[d]);
-   }
+    for (d=0; d<OUT_DIM; ++d)
+    {
+       mean[d] /= (float)frameNumber;
+       sd[d] = (float)sqrt(sd[d]/(float)frameNumber - mean[d]*mean[d]);
+    }
 
 
-   for (t=0; t<frameNumber; ++t)
-      for (d=0; d<OUT_DIM; ++d)
-         Cep_Data[t][d] = (Cep_Data[t][d] - mean[d])/sd[d];
-*/ 
-        
-   
-   if(DO_AVG==1)
-   {
-      fea = (double *) malloc(sizeof(double)*frameNumber);
-      for(d=0; d<OUT_DIM; d++)
-      {
-         for (t=ORDER_M; t<(frameNumber-ORDER_M); ++t)
+    for (t=0; t<frameNumber; ++t)
+       for (d=0; d<OUT_DIM; ++d)
+          Cep_Data[t][d] = (Cep_Data[t][d] - mean[d])/sd[d];
+*/
+
+
+    if(DO_AVG==1)
+    {
+       fea = (double *) malloc(sizeof(double)*frameNumber);
+       for(d=0; d<OUT_DIM; d++)
+       {
+          for (t=ORDER_M; t<(frameNumber-ORDER_M); ++t)
+          {
+            fea[t] = 0.0f;
+            for(i=(-ORDER_M); i<=ORDER_M; i++)
+               fea[t] += Cep_Data[t+i][d];
+
+               fea[t] /= (double)(2.0f*ORDER_M+1.0f);
+          }
+
+          //assign Cep_Data[t][d]
+          for (t=ORDER_M+1; t<(frameNumber-ORDER_M); ++t)
+             Cep_Data[t][d] = (float)fea[t];
+       }
+       if(fea)
+       {
+          free(fea);
+          fea = NULL;
+       }
+    }
+    else if(DO_AVG==2)
+    {
+       //do ARMA
+       fea = (double *) malloc(sizeof(double)*1);
+       for(d=0; d<OUT_DIM; d++)
+       {
+          for (t=ORDER_M; t<(frameNumber-ORDER_M); ++t)
+          {
+             *fea = 0.0f;
+         for(i=1; i<=ORDER_M; i++)
          {
-           fea[t] = 0.0f;
-           for(i=(-ORDER_M); i<=ORDER_M; i++)
-              fea[t] += Cep_Data[t+i][d];
+                (*fea) += Cep_Data[t+i][d];
+                (*fea) += Cep_Data[t-i][d];
+             }
+             Cep_Data[t][d] += (float)(*fea);
+               Cep_Data[t][d] /= (float)(2.0f*ORDER_M+1.0f);
+          }
+       }
+       if(fea)
+       {
+          free(fea);
+          fea = NULL;
+       }
 
-      	    fea[t] /= (double)(2.0f*ORDER_M+1.0f);
-         }
-
-         //assign Cep_Data[t][d]
-         for (t=ORDER_M+1; t<(frameNumber-ORDER_M); ++t)
-            Cep_Data[t][d] = (float)fea[t];
-      }
-      if(fea)
-      {
-         free(fea);
-         fea = NULL;
-      }
-   }
-   else if(DO_AVG==2)
-   {
-      //do ARMA
-      fea = (double *) malloc(sizeof(double)*1);
-      for(d=0; d<OUT_DIM; d++)
-      {
-         for (t=ORDER_M; t<(frameNumber-ORDER_M); ++t)
-         {
-            *fea = 0.0f;
-	    for(i=1; i<=ORDER_M; i++)
-	    {
-               (*fea) += Cep_Data[t+i][d];
-               (*fea) += Cep_Data[t-i][d];
-            }
-            Cep_Data[t][d] += (float)(*fea);
-      	    Cep_Data[t][d] /= (float)(2.0f*ORDER_M+1.0f);
-         }
-      }
-      if(fea)
-      {
-         free(fea);
-         fea = NULL;
-      }
-
-   }
+    }
 }
-
-
-//2013/12/3, padding tail frame: fixed by whole sentence for tail(buff=MV_WINDOW*2+1)
-void MVN2_T2(OUT_DATA *Cep_Data,int frameNumber, int window)
-{
-   int   t, d;
-   double mean[OUT_DIM], sd[OUT_DIM];
-   double mean2[frameNumber][OUT_DIM], sd2[frameNumber][OUT_DIM];
-
-   int   i;
-   double *fea;
-   int tt,t_index,f_flag;
-   
-   //printf("qtk total frame:%d\n",frameNumber);getchar();
-   for (d=0; d<OUT_DIM; ++d)
-   {
-      mean[d] = 0.0f;
-      sd[d] = 0.0f;
-   }
-
-   for (t=0; t<frameNumber; ++t)
-      for (d=0; d<OUT_DIM; ++d)
-      {
-         mean[d] += Cep_Data[t][d];
-         sd[d]  += Cep_Data[t][d]*Cep_Data[t][d];
-      }
-
-
-   //dynamic mean & std calculation
-   f_flag=0;
-   for (t=0; t<frameNumber; ++t)
-   {
-      //track last buff at tail
-	  if (t==frameNumber-window)
-		f_flag=1;
-		
-	  for (d=0; d<OUT_DIM; ++d)
-          mean2[t][d] = sd2[t][d] = 0.0f;
-          
-      if (f_flag)
-	  {
-		//When trace index (t) falls in intervals of windows w.r.t end frame, 
-		//directly take mean & var of the total frames rather than of frames between windows
-		  for (d=0; d<OUT_DIM; ++d)
-		  {
-			mean2[t][d] +=mean[d];
-			sd2[t][d] +=sd[d];
-		  }
-
-	  }
-	  else
-	  {
-		  for (tt=t-window;tt<=t+window;tt++)
-		  {
-			   if(tt < 0)
-			   {
-				  //t_index=0;
-				  if(frameNumber+tt<0)
-					t_index =0;
-				  else              
-					t_index = frameNumber+tt;
-			   }
-			   else if(tt > frameNumber-1)
-			   {
-				  //t_index=frameNumber-1;
-				  if(tt-frameNumber > frameNumber-1)
-					 t_index = frameNumber-1;
-				  else
-					 t_index = tt-frameNumber;
-			   }
-			   else
-				  t_index=tt;
-				  
-				  
-			   for (d=0; d<OUT_DIM; ++d)
-			   {
-				  mean2[t][d] += Cep_Data[t_index][d];
-				  sd2[t][d] += Cep_Data[t_index][d]*Cep_Data[t_index][d];
-			   }
-		  }
-	  }
-
-      
-      for (d=0; d<OUT_DIM; ++d)
-      {
-          if (f_flag)
-		  {
-			mean2[t][d] /= (float)(frameNumber);
-			sd2[t][d] = (float)sqrt(sd2[t][d]/(float)(frameNumber) - mean2[t][d]*mean2[t][d]);
-		  }
-		  else
-		  {
-			mean2[t][d] /= (float)(2.0f*window+1.0f);
-			sd2[t][d] = (float)sqrt(sd2[t][d]/(float)(2.0f*window+1.0f) - mean2[t][d]*mean2[t][d]);
-		  }
-      }
-   
-      //printf("ok frame:%d mean2 sd2\n",t);
-          
-   }
-   //printf("qtk! ok mean2 sd2!\n");
-   
-   //using dynamic mean & std
-   for (t=0; t<frameNumber; ++t)
-     for (d=0; d<OUT_DIM; ++d)
-        Cep_Data[t][d] = (Cep_Data[t][d] - mean2[t][d])/sd2[t][d];   
-
-//using whole sentence
-/*
-   for (d=0; d<OUT_DIM; ++d)
-   {
-      mean[d] = 0.0f;
-      sd[d] = 0.0f;
-   }
-
-   for (t=0; t<frameNumber; ++t)
-      for (d=0; d<OUT_DIM; ++d)
-      {
-         mean[d] += Cep_Data[t][d];
-         sd[d]  += Cep_Data[t][d]*Cep_Data[t][d];
-      }
-
-   for (d=0; d<OUT_DIM; ++d)
-   {
-      mean[d] /= (float)frameNumber;
-      sd[d] = (float)sqrt(sd[d]/(float)frameNumber - mean[d]*mean[d]);
-   }
-
-
-   for (t=0; t<frameNumber; ++t)
-      for (d=0; d<OUT_DIM; ++d)
-         Cep_Data[t][d] = (Cep_Data[t][d] - mean[d])/sd[d];
-*/ 
-        
-   
-   if(DO_AVG==1)
-   {
-      fea = (double *) malloc(sizeof(double)*frameNumber);
-      for(d=0; d<OUT_DIM; d++)
-      {
-         for (t=ORDER_M; t<(frameNumber-ORDER_M); ++t)
-         {
-           fea[t] = 0.0f;
-           for(i=(-ORDER_M); i<=ORDER_M; i++)
-              fea[t] += Cep_Data[t+i][d];
-
-      	    fea[t] /= (double)(2.0f*ORDER_M+1.0f);
-         }
-
-         //assign Cep_Data[t][d]
-         for (t=ORDER_M+1; t<(frameNumber-ORDER_M); ++t)
-            Cep_Data[t][d] = (float)fea[t];
-      }
-      if(fea)
-      {
-         free(fea);
-         fea = NULL;
-      }
-   }
-   else if(DO_AVG==2)
-   {
-      //do ARMA
-      fea = (double *) malloc(sizeof(double)*1);
-      for(d=0; d<OUT_DIM; d++)
-      {
-         for (t=ORDER_M; t<(frameNumber-ORDER_M); ++t)
-         {
-            *fea = 0.0f;
-	    for(i=1; i<=ORDER_M; i++)
-	    {
-               (*fea) += Cep_Data[t+i][d];
-               (*fea) += Cep_Data[t-i][d];
-            }
-            Cep_Data[t][d] += (float)(*fea);
-      	    Cep_Data[t][d] /= (float)(2.0f*ORDER_M+1.0f);
-         }
-      }
-      if(fea)
-      {
-         free(fea);
-         fea = NULL;
-      }
-
-   }
-}
-
 void CMN_New(CEP_DATA *Cep_Data,int frameNumber)
 {
 	int	i,t;
@@ -1693,7 +1532,8 @@ int main(int argc, char *argv[])
 			 //MVN2(out_data,gb_totalFrames,MV_WINDOW);
 			 //MVN2(out_data,gb_totalFrames,MV_new); //2013/12/2, fit small utters. to MV_WINDOW
 			 //MVN2_T1(out_data,gb_totalFrames,MV_new); //2013/12/3, padding tail frame: fixed by buff for tail(buff=MV_WINDOW*2+1)
-			 MVN2_T2(out_data,gb_totalFrames,MV_new); //2013/12/3, padding tail frame: fixed by whole sentence for tail(buff=MV_WINDOW*2+1)
+			 //MVN2_T2(out_data,gb_totalFrames,MV_new); //2013/12/3, padding tail frame: fixed by whole sentence for tail(buff=MV_WINDOW*2+1)
+			 MVN2_ACC(out_data,gb_totalFrames,MV_new);  //2014/01/20
 			 
 			 if(DO_AVG==1)
 			    strcpy(extensionName,"mfcATC0DAC39mva");
