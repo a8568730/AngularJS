@@ -14,9 +14,15 @@ char IN_WAV_DIR[256];
 char OUT_C12_DIR[256];
 char OUT_EC_DIR[256];
 float C0;
+
+#define  MAX_FRAME 3000
+#define DDIM 39
 //#define   IN_WAV_DIR    "/home1/e0mars5/santu/Feature/MAT2000/TR/Waveform/Clean/"
 //#define   OUT_C12_DIR   "/home1/e0mars5/santu/Feature/MAT2000/TR/Clean/MFCC_C12"
 //#define   OUT_EC_DIR    "/home1/e0mars5/santu/Feature/MAT2000/TR/Clean/MFCC_ENG"
+
+double g_mean2[MAX_FRAME][DDIM], g_sd2[MAX_FRAME][DDIM];
+FILE* fpcmout;
 
 /***********************************
 *        make directory
@@ -941,6 +947,169 @@ void MVN(OUT_DATA *Cep_Data,int frameNumber)
    }
 }
 
+void MVN_sync(OUT_DATA *Cep_Data,int frameNumber, int delay_frame)
+{
+   int   t, d;
+   double mean[OUT_DIM], sd[OUT_DIM];
+   double tmp_mean[OUT_DIM], tmp_sd[OUT_DIM];
+   double mean2[frameNumber][OUT_DIM], sd2[frameNumber][OUT_DIM];
+   
+   int   i;
+   double *fea;
+   int tt,t_index;
+
+   
+   if(frameNumber >= MAX_FRAME)
+   {
+		printf("total frame exceeds MAX_FRAME(%d)",MAX_FRAME);
+		exit(-1);
+   }
+
+   for (d=0; d<OUT_DIM; ++d)
+   {
+      mean[d] = 0.0f;
+      sd[d] = 0.0f;
+	  tmp_mean[d] = 0.0f;
+	  tmp_sd[d] = 0.0f;
+   }
+
+   //sentence mean & std
+	for (t=0; t<frameNumber; ++t)
+	{
+      for (d=0; d<OUT_DIM; ++d)
+      {
+         mean[d] += Cep_Data[t][d];
+         sd[d]  += Cep_Data[t][d]*Cep_Data[t][d];
+      }
+	}
+
+	
+   for (d=0; d<OUT_DIM; ++d)
+   {
+      mean[d] /= (float)frameNumber;
+      sd[d] = (float)sqrt(sd[d]/(float)frameNumber - mean[d]*mean[d]);
+   }
+   
+   //mean & std for delay frames
+   for (t=0; t<delay_frame; ++t)
+	{
+      for (d=0; d<OUT_DIM; ++d)
+      {
+         tmp_mean[d] += Cep_Data[t][d];
+         tmp_sd[d]  += Cep_Data[t][d]*Cep_Data[t][d];
+      }
+	}
+
+   for (d=0; d<OUT_DIM; ++d)
+   {
+      tmp_mean[d] /= (float)delay_frame;
+      tmp_sd[d] = (float)sqrt(tmp_sd[d]/(float)delay_frame - tmp_mean[d]*tmp_mean[d]);
+   }
+  
+   for(t=0;t<delay_frame;t++)
+   {
+		for (d=0; d<OUT_DIM; ++d)
+		{
+			mean2[t][d] = tmp_mean[d];
+			sd2[t][d] = tmp_sd[d];
+		}
+   }
+   
+   for(t=delay_frame;t<frameNumber;t++)
+   { 
+		for (d=0; d<OUT_DIM; ++d)
+		{
+			tmp_sd[d] = tmp_sd[d]*tmp_sd[d];
+			tmp_sd[d] += tmp_mean[d]*tmp_mean[d];
+			tmp_sd[d] *= (float)t;
+		
+			tmp_sd[d] += Cep_Data[t][d]*Cep_Data[t][d];
+			tmp_sd[d] /= (float)(t+1);
+			
+			tmp_mean[d] = tmp_mean[d]*(float)t;
+			tmp_mean[d] += Cep_Data[t][d];
+			tmp_mean[d] /= (float)(t+1);
+			
+			tmp_sd[d] -= tmp_mean[d]*tmp_mean[d];
+			tmp_sd[d] = (float)sqrt(tmp_sd[d]);
+			
+			mean2[t][d] = tmp_mean[d];
+			sd2[t][d] = tmp_sd[d];
+			
+		}
+		
+   }
+   
+   //copy m  v
+   for(t=0;t<frameNumber;t++)
+   { 
+		for (d=0; d<OUT_DIM; ++d)
+		{
+			g_mean2[t][d] = mean2[t][d];
+			g_sd2[t][d] = sd2[t][d];
+		}
+   }
+   
+   //using dynamic mean & std
+   
+   for (t=0; t<frameNumber; ++t)
+     for (d=0; d<OUT_DIM; ++d)
+        Cep_Data[t][d] = (Cep_Data[t][d] - mean2[t][d])/sd2[t][d]; 
+   
+  
+    if(DO_AVG==1)
+   {
+      fea = (double *) malloc(sizeof(double)*frameNumber);
+      for(d=0; d<OUT_DIM; d++)
+      {
+         for (t=ORDER_M; t<(frameNumber-ORDER_M); ++t)
+         {
+           fea[t] = 0.0f;
+           for(i=(-ORDER_M); i<=ORDER_M; i++)
+              fea[t] += Cep_Data[t+i][d];
+
+      	    fea[t] /= (double)(2.0f*ORDER_M+1.0f);
+         }
+
+         //assign Cep_Data[t][d]
+         for (t=ORDER_M+1; t<(frameNumber-ORDER_M); ++t)
+            Cep_Data[t][d] = (float)fea[t];
+      }
+      if(fea)
+      {
+         free(fea);
+         fea = NULL;
+      }
+   }
+   else if(DO_AVG==2)
+   {
+      //do ARMA
+      fea = (double *) malloc(sizeof(double)*1);
+      for(d=0; d<OUT_DIM; d++)
+      {
+         for (t=ORDER_M; t<(frameNumber-ORDER_M); ++t)
+         {
+            *fea = 0.0f;
+	    for(i=1; i<=ORDER_M; i++)
+	    {
+               (*fea) += Cep_Data[t+i][d];
+               (*fea) += Cep_Data[t-i][d];
+            }
+            Cep_Data[t][d] += (float)(*fea);
+      	    Cep_Data[t][d] /= (float)(2.0f*ORDER_M+1.0f);
+         }
+      }
+      if(fea)
+      {
+         free(fea);
+         fea = NULL;
+      }
+
+   }
+   
+   
+}
+
 void MVN2(OUT_DATA *Cep_Data,int frameNumber, int window)
 {
    int   t, d;
@@ -1196,9 +1365,9 @@ void MVN2_ACC(OUT_DATA *Cep_Data,int frameNumber, int window)
 
        for (d=0; d<OUT_DIM; ++d)
        {
-           mean2[t][d] /= (float)(2.0f*frameNumber+1.0f);
+           mean2[t][d] /= (float)(2.0f*(end-begin)+1.0f);
            sd2[t][d] = 
-(float)sqrt(sd2[t][d]/(float)(2.0f*frameNumber+1.0f) - 
+(float)sqrt(sd2[t][d]/(float)(2.0f*(end-begin)+1.0f) - 
 mean2[t][d]*mean2[t][d]);
        }
 
@@ -1402,12 +1571,25 @@ int OutputFeatureHTKFormat(char *fileName,char *extension)
 	FILE   *fp_fea;
 	int nSamples, sampPeriod;
     short sampSize, parmKind;
+	FILE *fp_txt, *fp_m, *fp_v;
     
 float data[OUT_DIM];
 	// C12 (EC_LTA_C12)
 	sprintf(fname,"%s/%s.%s", OUT_C12_DIR, fileName, extension);
 	MakeDirectory(fname);
 	fp_fea = fopen(fname,"wb");
+	
+	//sprintf(fname,"%s/%s_delay%d_raw.txt", OUT_C12_DIR, fileName,DELAY_FRAME);
+	//MakeDirectory(fname);
+	//fp_txt = fopen(fname,"wt");
+	
+	//sprintf(fname,"%s/%s.m", OUT_C12_DIR, fileName);
+	//MakeDirectory(fname);
+	//fp_m = fopen(fname,"wt");
+	
+	//sprintf(fname,"%s/%s.v", OUT_C12_DIR, fileName);
+	//MakeDirectory(fname);
+	//fp_v = fopen(fname,"wt");
 	
 	nSamples=(int)gb_totalFrames;
 		sampPeriod=HTK_HEADER_SAMPERIOD;
@@ -1428,12 +1610,40 @@ float data[OUT_DIM];
 		for(d=0;d<OUT_DIM;d++)
 		{
 			data[d]=out_data[t][d];
+			
+			/*
+			if(d==0)
+			{
+				fprintf(fp_txt,"%f",data[d]);
+				fprintf(fp_m,"%f",g_mean2[t][d]);
+				fprintf(fp_v,"%f",g_sd2[t][d]);
+			}
+			else
+			{
+				fprintf(fp_txt," %f",data[d]);
+				fprintf(fp_m," %f",g_mean2[t][d]);
+				fprintf(fp_v," %f",g_sd2[t][d]);
+			}
+			*/
 		}
+		//fprintf(fp_txt,"\n");
+		//fprintf(fp_m,"\n");
+		//fprintf(fp_v,"\n");
+		
 		byteSwapArray(data,OUT_DIM);
 		fwrite(data,sizeof(float),OUT_DIM,fp_fea);
 	}
 	if(fp_fea)
 		fclose(fp_fea);
+		
+	//if(fp_txt)
+	//	fclose(fp_txt);
+		
+	//if(fp_m)
+	//	fclose(fp_m);
+		
+	//if(fp_v)
+	//	fclose(fp_v);
 	
 	return(1);
 }
@@ -1523,21 +1733,31 @@ int main(int argc, char *argv[])
 		if(DO_CMN_OR_MVN==1)
 		{
 			 //2013/12/2, fit small utters. to MV_WINDOW
-			 if(gb_totalFrames<(MV_WINDOW*2+1))
+			 // if(gb_totalFrames<(MV_WINDOW*2+1))
+				// MV_new=(int)(gb_totalFrames/2); 
+			 // else
+				// MV_new=MV_WINDOW;
+			
+			
+			//2014/03/10 short sentence check
+			 if(gb_totalFrames<(DELAY_FRAME*2+1))
 				MV_new=(int)(gb_totalFrames/2); 
 			 else
-				MV_new=MV_WINDOW;
+				MV_new=DELAY_FRAME;
+			
 				
 			 //MVN(out_data,gb_totalFrames);
 			 //MVN2(out_data,gb_totalFrames,MV_WINDOW);
 			 //MVN2(out_data,gb_totalFrames,MV_new); //2013/12/2, fit small utters. to MV_WINDOW
 			 //MVN2_T1(out_data,gb_totalFrames,MV_new); //2013/12/3, padding tail frame: fixed by buff for tail(buff=MV_WINDOW*2+1)
 			 //MVN2_T2(out_data,gb_totalFrames,MV_new); //2013/12/3, padding tail frame: fixed by whole sentence for tail(buff=MV_WINDOW*2+1)
-			 MVN2_ACC(out_data,gb_totalFrames,MV_new);  //2014/01/20
-			 
-			 if(DO_AVG==1)
+			 //MVN2_ACC(out_data,gb_totalFrames,MV_new);  //2014/01/20
+			
+			MVN_sync(out_data,gb_totalFrames,MV_new);  //2014/03/06
+			
+			if(DO_AVG==1)
 			    strcpy(extensionName,"mfcATC0DAC39mva");
-			 else if(DO_AVG==2)
+			else if(DO_AVG==2)
 			    strcpy(extensionName,"mfcATC0DAC39mvacjp_atc2");
 		}
 		else if(DO_CMN_OR_MVN==2)
