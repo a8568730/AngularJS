@@ -13,7 +13,7 @@ app1.controller("showController",["$scope","$location","$http","$q",function($sc
             }
         ];
     var searchObject = $location.url();
-    alert(searchObject);
+    //alert(searchObject);
     
     //alert($routeParams.aaaa);
     /*印出萬國碼方法 1*/
