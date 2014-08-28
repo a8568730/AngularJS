@@ -1863,7 +1863,7 @@ void process(char* ref_filename, char *fileName){
 	{
 		printf("Error\n");
 		getchar();			
-	}	
+	}
 	if(gb_cep_data)
 		free(gb_cep_data);
 	if(delta_data)
