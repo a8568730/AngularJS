@@ -13,10 +13,17 @@
 char IN_WAV_DIR[256];
 char OUT_C12_DIR[256];
 char OUT_EC_DIR[256];
+char REFmfcc_DIR[256];
 float C0;
+
+#define  MAX_FRAME 3000
+#define DDIM 39
 //#define   IN_WAV_DIR    "/home1/e0mars5/santu/Feature/MAT2000/TR/Waveform/Clean/"
 //#define   OUT_C12_DIR   "/home1/e0mars5/santu/Feature/MAT2000/TR/Clean/MFCC_C12"
 //#define   OUT_EC_DIR    "/home1/e0mars5/santu/Feature/MAT2000/TR/Clean/MFCC_ENG"
+
+double g_mean2[MAX_FRAME][DDIM], g_sd2[MAX_FRAME][DDIM];
+FILE* fpcmout;
 
 /***********************************
 *        make directory
@@ -941,6 +948,169 @@ void MVN(OUT_DATA *Cep_Data,int frameNumber)
    }
 }
 
+void MVN_sync(OUT_DATA *Cep_Data,int frameNumber, int delay_frame)
+{
+   int   t, d;
+   double mean[OUT_DIM], sd[OUT_DIM];
+   double tmp_mean[OUT_DIM], tmp_sd[OUT_DIM];
+   double mean2[frameNumber][OUT_DIM], sd2[frameNumber][OUT_DIM];
+   
+   int   i;
+   double *fea;
+   int tt,t_index;
+
+   
+   if(frameNumber >= MAX_FRAME)
+   {
+		printf("total frame exceeds MAX_FRAME(%d)",MAX_FRAME);
+		exit(-1);
+   }
+
+   for (d=0; d<OUT_DIM; ++d)
+   {
+      mean[d] = 0.0f;
+      sd[d] = 0.0f;
+	  tmp_mean[d] = 0.0f;
+	  tmp_sd[d] = 0.0f;
+   }
+
+   //sentence mean & std
+	for (t=0; t<frameNumber; ++t)
+	{
+      for (d=0; d<OUT_DIM; ++d)
+      {
+         mean[d] += Cep_Data[t][d];
+         sd[d]  += Cep_Data[t][d]*Cep_Data[t][d];
+      }
+	}
+
+	
+   for (d=0; d<OUT_DIM; ++d)
+   {
+      mean[d] /= (float)frameNumber;
+      sd[d] = (float)sqrt(sd[d]/(float)frameNumber - mean[d]*mean[d]);
+   }
+   
+   //mean & std for delay frames
+   for (t=0; t<delay_frame; ++t)
+	{
+      for (d=0; d<OUT_DIM; ++d)
+      {
+         tmp_mean[d] += Cep_Data[t][d];
+         tmp_sd[d]  += Cep_Data[t][d]*Cep_Data[t][d];
+      }
+	}
+
+   for (d=0; d<OUT_DIM; ++d)
+   {
+      tmp_mean[d] /= (float)delay_frame;
+      tmp_sd[d] = (float)sqrt(tmp_sd[d]/(float)delay_frame - tmp_mean[d]*tmp_mean[d]);
+   }
+  
+   for(t=0;t<delay_frame;t++)
+   {
+		for (d=0; d<OUT_DIM; ++d)
+		{
+			mean2[t][d] = tmp_mean[d];
+			sd2[t][d] = tmp_sd[d];
+		}
+   }
+   
+   for(t=delay_frame;t<frameNumber;t++)
+   { 
+		for (d=0; d<OUT_DIM; ++d)
+		{
+			tmp_sd[d] = tmp_sd[d]*tmp_sd[d];
+			tmp_sd[d] += tmp_mean[d]*tmp_mean[d];
+			tmp_sd[d] *= (float)t;
+		
+			tmp_sd[d] += Cep_Data[t][d]*Cep_Data[t][d];
+			tmp_sd[d] /= (float)(t+1);
+			
+			tmp_mean[d] = tmp_mean[d]*(float)t;
+			tmp_mean[d] += Cep_Data[t][d];
+			tmp_mean[d] /= (float)(t+1);
+			
+			tmp_sd[d] -= tmp_mean[d]*tmp_mean[d];
+			tmp_sd[d] = (float)sqrt(tmp_sd[d]);
+			
+			mean2[t][d] = tmp_mean[d];
+			sd2[t][d] = tmp_sd[d];
+			
+		}
+		
+   }
+   
+   //copy m  v
+   for(t=0;t<frameNumber;t++)
+   { 
+		for (d=0; d<OUT_DIM; ++d)
+		{
+			g_mean2[t][d] = mean2[t][d];
+			g_sd2[t][d] = sd2[t][d];
+		}
+   }
+   
+   //using dynamic mean & std
+   
+   for (t=0; t<frameNumber; ++t)
+     for (d=0; d<OUT_DIM; ++d)
+        Cep_Data[t][d] = (Cep_Data[t][d] - mean2[t][d])/sd2[t][d]; 
+   
+  
+    if(DO_AVG==1)
+   {
+      fea = (double *) malloc(sizeof(double)*frameNumber);
+      for(d=0; d<OUT_DIM; d++)
+      {
+         for (t=ORDER_M; t<(frameNumber-ORDER_M); ++t)
+         {
+           fea[t] = 0.0f;
+           for(i=(-ORDER_M); i<=ORDER_M; i++)
+              fea[t] += Cep_Data[t+i][d];
+
+      	    fea[t] /= (double)(2.0f*ORDER_M+1.0f);
+         }
+
+         //assign Cep_Data[t][d]
+         for (t=ORDER_M+1; t<(frameNumber-ORDER_M); ++t)
+            Cep_Data[t][d] = (float)fea[t];
+      }
+      if(fea)
+      {
+         free(fea);
+         fea = NULL;
+      }
+   }
+   else if(DO_AVG==2)
+   {
+      //do ARMA
+      fea = (double *) malloc(sizeof(double)*1);
+      for(d=0; d<OUT_DIM; d++)
+      {
+         for (t=ORDER_M; t<(frameNumber-ORDER_M); ++t)
+         {
+            *fea = 0.0f;
+	    for(i=1; i<=ORDER_M; i++)
+	    {
+               (*fea) += Cep_Data[t+i][d];
+               (*fea) += Cep_Data[t-i][d];
+            }
+            Cep_Data[t][d] += (float)(*fea);
+      	    Cep_Data[t][d] /= (float)(2.0f*ORDER_M+1.0f);
+         }
+      }
+      if(fea)
+      {
+         free(fea);
+         fea = NULL;
+      }
+
+   }
+   
+  
+}
+
 void MVN2(OUT_DATA *Cep_Data,int frameNumber, int window)
 {
    int   t, d;
@@ -1084,8 +1254,8 @@ void MVN2(OUT_DATA *Cep_Data,int frameNumber, int window)
 }
 
 
-//2014/01/16, accumulate buff for MVN
-void MVN2_ACC(OUT_DATA *Cep_Data,int frameNumber, int window)
+
+void MVN2_ACC(OUT_DATA *Cep_Data, int frameNumber, int window)
 {
     int   t, d;
     double mean[OUT_DIM], sd[OUT_DIM];
@@ -1402,8 +1572,9 @@ int OutputFeatureHTKFormat(char *fileName,char *extension)
 	FILE   *fp_fea;
 	int nSamples, sampPeriod;
     short sampSize, parmKind;
+	FILE *fp_txt, *fp_m, *fp_v;
     
-float data[OUT_DIM];
+	float data[OUT_DIM];
 	// C12 (EC_LTA_C12)
 	sprintf(fname,"%s/%s.%s", OUT_C12_DIR, fileName, extension);
 	MakeDirectory(fname);
@@ -1434,7 +1605,7 @@ float data[OUT_DIM];
 	}
 	if(fp_fea)
 		fclose(fp_fea);
-	
+		
 	return(1);
 }
 int AssignCepToOutData(void)
@@ -1463,15 +1634,23 @@ int AssignCepToOutData(void)
 	*/
 	return 1;
 }
+
+void process(char*, char*);
+
 int main(int argc, char *argv[])
 {
 	FILE   *fp_lst;
-	char   fileName[512], fname[512],extensionName[64];
-	int t,d,MV_new;
-
-	if(argc!=5)
+	//char   fileName[512], fname[512],extensionName[64];
+	//int t,d,MV_new;
+	char personpath[256];
+	char filename[3][256];//1st(单ъ程)ii+1
+	int pcmnum=0;
+	int i;
+	int ref_view_num=10, view_index=0;
+	
+	if(argc!=6)
 	{
-		printf("feature.exe <list file> <IN_WAV_DIR> <OUT_DIR> <CMN/MVNMA/NONE>\n");
+		printf("feature.exe <list file> <IN_WAV_DIR> <OUT_DIR> <CMN/MVNMA/NONE> <REFmfcc>\n");
 		exit(0);
 	}
 	DO_CMN_OR_MVN=-1;
@@ -1489,7 +1668,7 @@ int main(int argc, char *argv[])
 	}
 	if(DO_CMN_OR_MVN==-1)
 	{
-		printf("Normalization參數不正確！請輸入CMN或MVNMA\n");
+		printf("Normalization把计ぃタ絋叫块CMN┪MVNMA\n");
 		exit(0);
 	}
 
@@ -1497,68 +1676,202 @@ int main(int argc, char *argv[])
 	sprintf(IN_WAV_DIR,"%s",argv[2]);
 	sprintf(OUT_C12_DIR,"%s/",argv[3]);
 	sprintf(OUT_EC_DIR,"%s/",argv[3]);
-
+	sprintf(REFmfcc_DIR,"%s", argv[5]);//2014/03/31
+	
 	if(fp_lst == NULL)
 	{
 		printf("cant open LST file : %s\n", argv[1]);exit(0);
 	}
 	ini_fea_para();
-	while(fscanf(fp_lst, " %s\n",fileName)!=EOF)
+	
+	//printf("REFmfcc_DIR = %s\n\n",REFmfcc_DIR);
+	
+	memset(personpath,'\0',sizeof(personpath));
+	memset(filename,'\0',sizeof(filename));
+	//while(fscanf(fp_lst, "%s %d\n",personpath, &pcmnum)!=EOF && (view_index < ref_view_num))//2014/03/31
+	while(fscanf(fp_lst, "%s %d\n",personpath, &pcmnum)!=EOF)//2014/03/31
 	{
-		sprintf(fname, "%s/%s", IN_WAV_DIR, fileName);
-
-		MFCC_shell(fname);
-		CEPLIFTER(gb_totalFrames);
-		out_data=calloc(sizeof(OUT_DATA),gb_totalFrames);
-		delta_data=calloc(sizeof(CEP_DATA),gb_totalFrames);
-		delta2_data=calloc(sizeof(CEP_DATA),gb_totalFrames);
-		if(DO_CMN_OR_MVN==0)
-		{
-			CMN_New(gb_cep_data,gb_totalFrames);
-			strcpy(extensionName,"mfcATC0DAZC39");
+		if(pcmnum>=3){
+			//材把σ材┮既材
+			//眖材秨﹍衡
+			fscanf(fp_lst, "%s\n", filename[0]);
+			strcpy(filename[1],filename[0]);
+			fscanf(fp_lst, "%s\n", filename[2]);		
+			process(filename[1], filename[2]);
+			
+			for(i=3;i<=pcmnum;i++){
+				strcpy(filename[1],filename[2]);
+				fscanf(fp_lst, "%s\n", filename[2]);		
+				process(filename[1], filename[2]);
+			}
+			//程把σ程干暗材
+			process(filename[2], filename[0]);
 		}
-		getDeltaCep_New(gb_totalFrames,gb_cep_data,delta_data);
-		getDeltaCep_New(gb_totalFrames,delta_data,delta2_data);
-		AssignCepToOutData();
-		if(DO_CMN_OR_MVN==1)
-		{
-			 //2013/12/2, fit small utters. to MV_WINDOW
-			 if(gb_totalFrames<(MV_WINDOW*2+1))
-				MV_new=(int)(gb_totalFrames/2); 
-			 else
-				MV_new=MV_WINDOW;
-				
-			 //MVN(out_data,gb_totalFrames);
-			 //MVN2(out_data,gb_totalFrames,MV_WINDOW);
-			 //MVN2(out_data,gb_totalFrames,MV_new); //2013/12/2, fit small utters. to MV_WINDOW
-			 //MVN2_T1(out_data,gb_totalFrames,MV_new); //2013/12/3, padding tail frame: fixed by buff for tail(buff=MV_WINDOW*2+1)
-			 //MVN2_T2(out_data,gb_totalFrames,MV_new); //2013/12/3, padding tail frame: fixed by whole sentence for tail(buff=MV_WINDOW*2+1)
-			 MVN2_ACC(out_data,gb_totalFrames,MV_new);  //2014/01/20
-			 
-			 if(DO_AVG==1)
-			    strcpy(extensionName,"mfcATC0DAC39mva");
-			 else if(DO_AVG==2)
-			    strcpy(extensionName,"mfcATC0DAC39mvacjp_atc2");
+		else if(pcmnum==2){
+			fscanf(fp_lst, "%s\n", filename[0]);
+			fscanf(fp_lst, "%s\n", filename[1]);
+			process(filename[1], filename[0]);
+			process(filename[0], filename[1]);
 		}
-		else if(DO_CMN_OR_MVN==2)
-		{
-			strcpy(extensionName,"mfcATC0DAC39");
+		else if(pcmnum==1){
+			fscanf(fp_lst, "%s\n", filename[0]);
+			process(filename[0],filename[0]);
 		}
-		if(!OutputFeatureHTKFormat(fileName,extensionName))
-		{
-			printf("Error\n");
-			getchar();			
-		}		
-		if(gb_cep_data)
-			free(gb_cep_data);
-		if(delta_data)
-			free(delta_data);
-		if(delta2_data)
-			free(delta2_data);
-		if(out_data)
-			free(out_data);
+		else {
+			printf("pcm_num %d can't be done...\n", pcmnum);
+			exit(0);
+		}
+		//printf("\n");
+		memset(filename,'\0',sizeof(filename));
+		memset(personpath,'\0',sizeof(personpath));
+		//view_index++;
 	}
-
 	if(fp_lst)
-		fclose(fp_lst);
+		fclose(fp_lst);		
+}
+
+
+/**************************************************************
+* 2014/03/31
+* assign the reference feature and now feature to a temp feature
+* -> mixfea = reffea + nowfea
+* -> OUT_DATA = mixfea
+*
+* 1. finish the primary process of now pcm
+* 2. read the length of a window from reference feature, also 
+*    make sure reference length is enough
+* 3. combine ref_fea with now_fea as argument for MVN_sync
+* 4. done
+*************************************************************/
+void process(char* ref_filename, char *fileName){
+	
+	char   fname[512], refpath[512],extensionName[64];
+	int t,d,MV_new;
+	OUT_DATA* mixdata;
+	FILE* refp;
+	int refFrames, mixFrames;
+	int refWindow;
+	
+	sprintf(refpath, "%s/%s.mvacjp_atc2_pre", REFmfcc_DIR, ref_filename);
+	sprintf(fname, "%s/%s", IN_WAV_DIR, fileName);
+	
+	//1.
+	MFCC_shell(fname);
+	CEPLIFTER(gb_totalFrames);
+	out_data=calloc(sizeof(OUT_DATA),gb_totalFrames);
+	delta_data=calloc(sizeof(CEP_DATA),gb_totalFrames);
+	delta2_data=calloc(sizeof(CEP_DATA),gb_totalFrames);
+	
+	if(DO_CMN_OR_MVN==0)
+	{
+		CMN_New(gb_cep_data,gb_totalFrames);
+		strcpy(extensionName,"mfcATC0DAZC39");
+	}
+	
+	getDeltaCep_New(gb_totalFrames,gb_cep_data,delta_data);
+	getDeltaCep_New(gb_totalFrames,delta_data,delta2_data);
+	AssignCepToOutData();
+	
+	if(DO_CMN_OR_MVN==1)
+	{	
+		//2. 
+		refp=fopen(refpath,"r");
+		if(refp==NULL){
+			printf("can't open reference file %s...\n", refpath);
+			return;
+		}
+		fscanf(refp, "%d\n", &refFrames);
+
+		refWindow=(MV_WINDOW-1); 
+		if(refFrames<=(MV_WINDOW-1))
+			refWindow=refFrames;
+		mixFrames=refWindow+gb_totalFrames;
+		mixdata=calloc(sizeof(OUT_DATA),mixFrames);
+		
+		int mr;
+		float ref1mfcc; 
+		mr=0;
+		for(t=0;t<refFrames;t++){
+			for(d=0;d<OUT_DIM;d++){
+				fscanf(refp, "%f ", &ref1mfcc);
+				if(t>=(refFrames-refWindow)){
+					mixdata[mr][d]=ref1mfcc;
+				}
+			}
+			fscanf(refp, "\n");
+			if(t>=(refFrames-refWindow)){mr++;}
+		}
+		fclose(refp);
+		//printf("mr=%d, oh\n",mr);
+		/*//check whether correctly pick up reffea
+		for(t=0;t<64;t++){
+			printf("t=%d: ", t);
+			for(d=0;d<OUT_DIM;d++){printf("%f ", mixdata[t][d]);}
+			printf("\n");
+		}
+		*/
+		
+		// 3. mixfea = tails of reffea adds nowfea, out_data= mixfea
+		for(t=0;t<gb_totalFrames;t++){
+			//printf("mr=%d\n", mr);
+			for(d=0;d<OUT_DIM;d++){
+				mixdata[mr][d]=out_data[t][d];
+			}
+			mr++;
+		}
+		if(mr!=mixFrames){	
+			printf("mr=%d, but mixFrames=%d...\n",mr,mixFrames);
+			printf("to combine: refpath=%s,\tfname=%s\n",refpath, fname);
+			printf("reflen=%d refdelay=%d nowlen=%d\n", refFrames, refWindow, gb_totalFrames);
+			return;
+		}
+		
+		out_data=realloc(out_data,sizeof(OUT_DATA)*mixFrames);
+		memset(out_data,0.0f,sizeof(OUT_DATA)*mixFrames);
+		
+		for(t=0;t<mixFrames;t++){
+			//printf("t=%d: ", t);
+			for(d=0;d<OUT_DIM;d++){
+				out_data[t][d]=mixdata[t][d];
+				//printf("%f ", out_data[t][d]);
+			}
+			//printf("\n");
+		}
+		gb_totalFrames=mixFrames;
+		
+		//4. done
+		
+		//2014/03/10 short sentence check
+		if(gb_totalFrames<(MV_WINDOW*2+1))
+			MV_new=(int)(gb_totalFrames/2); 
+		else
+			MV_new=MV_WINDOW;
+		
+		MVN_sync(out_data,gb_totalFrames,MV_new);  //2014/03/06
+		
+		if(DO_AVG==1)
+			strcpy(extensionName,"mfcATC0DAC39mva");
+		else if(DO_AVG==2)
+			 strcpy(extensionName,"mfcATC0DAC39mvacjp_atc2"); 
+			//strcpy(extensionName,"mvacjp_atc2_pre");	//2013/03/31 pre
+	}
+	else if(DO_CMN_OR_MVN==2)
+	{
+		strcpy(extensionName,"mfcATC0DAC39");
+	}
+	if(!OutputFeatureHTKFormat(fileName,extensionName))
+	{
+		printf("Error\n");
+		getchar();			
+	}	
+	if(gb_cep_data)
+		free(gb_cep_data);
+	if(delta_data)
+		free(delta_data);
+	if(delta2_data)
+		free(delta2_data);
+	if(out_data)
+		free(out_data);	
+	if(mixdata)
+		free(mixdata);
 }
